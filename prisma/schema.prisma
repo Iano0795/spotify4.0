@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                 String              @id @default(cuid())
+  email              String?             @unique
+  displayName        String?
+  spotifyAccount     SpotifyAccount?
+  sessions           Session[]
+  recommendationRuns RecommendationRun[]
+  playlists          GeneratedPlaylist[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model SpotifyAccount {
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  spotifyUserId         String    @unique
+  accessTokenEncrypted  String?
+  refreshTokenEncrypted String?
+  expiresAt             DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model MoodProfile {
+  id                 String              @id @default(cuid())
+  key                String              @unique
+  label              String
+  energy             Float
+  valence            Float
+  tempo              Float
+  danceability       Float
+  acousticness       Float
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  recommendationRuns RecommendationRun[]
+  playlists          GeneratedPlaylist[]
+}
+
+model RecommendationRun {
+  id             String               @id @default(cuid())
+  userId         String
+  moodKey        String
+  genres         String[]
+  requestedLimit Int
+  createdAt      DateTime             @default(now())
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mood           MoodProfile          @relation(fields: [moodKey], references: [key])
+  items          RecommendationItem[]
+  playlists      GeneratedPlaylist[]
+
+  @@index([userId, createdAt])
+}
+
+model RecommendationItem {
+  id          String            @id @default(cuid())
+  runId       String
+  spotifyId   String
+  trackName   String
+  artistNames String[]
+  score       Float
+  rank        Int
+  run         RecommendationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, rank])
+}
+
+model GeneratedPlaylist {
+  id                  String                  @id @default(cuid())
+  userId              String
+  recommendationRunId String?
+  spotifyPlaylistId   String                  @unique
+  name                String
+  moodKey             String
+  isPublic            Boolean                 @default(false)
+  createdAt           DateTime                @default(now())
+  user                User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mood                MoodProfile             @relation(fields: [moodKey], references: [key])
+  recommendationRun   RecommendationRun?      @relation(fields: [recommendationRunId], references: [id], onDelete: SetNull)
+  items               GeneratedPlaylistItem[]
+
+  @@index([userId, createdAt])
+}
+
+model GeneratedPlaylistItem {
+  id             String            @id @default(cuid())
+  playlistId     String
+  spotifyTrackId String
+  trackName      String
+  artistNames    String[]
+  position       Int
+  playlist       GeneratedPlaylist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@index([playlistId, position])
+}
